@@ -1,0 +1,93 @@
+import heapq
+
+class State:
+    def __init__(self, missionaries_left, cannibals_left, boat_left, missionaries_right, cannibals_right, moves=0, previous=None):
+        self.missionaries_left = missionaries_left
+        self.cannibals_left = cannibals_left
+        self.boat_left = boat_left
+        self.missionaries_right = missionaries_right
+        self.cannibals_right = cannibals_right
+        self.moves = moves
+        self.previous = previous
+
+    def is_goal(self):
+        # Check if all missionaries and cannibals are on the right side
+        return self.missionaries_left == 0 and self.cannibals_left == 0
+
+    def is_valid(self):
+        # Check if the state is valid (no side has more cannibals than missionaries)
+        if self.missionaries_left >= 0 and self.missionaries_right >= 0 and self.cannibals_left >= 0 and self.cannibals_right >= 0:
+            if (self.missionaries_left == 0 or self.missionaries_left >= self.cannibals_left) and (self.missionaries_right == 0 or self.missionaries_right >= self.cannibals_right):
+                return True
+        return False
+
+    def __lt__(self, other):
+        return self.moves < other.moves
+
+    def get_neighbors(self):
+        neighbors = []
+        moves = [(1, 0), (2, 0), (1, 1), (0, 1), (0, 2)]  # Possible moves (M, C) combinations
+        for m, c in moves:
+            if self.boat_left:
+                new_state = State(
+                    self.missionaries_left - m, self.cannibals_left - c, 0, 
+                    self.missionaries_right + m, self.cannibals_right + c, 
+                    self.moves + 1, self
+                )
+            else:
+                new_state = State(
+                    self.missionaries_left + m, self.cannibals_left + c, 1, 
+                    self.missionaries_right - m, self.cannibals_right - c, 
+                    self.moves + 1, self
+                )
+            if new_state.is_valid():
+                neighbors.append(new_state)
+        return neighbors
+
+def astar_solver(missionaries, cannibals):
+    initial_state = State(missionaries, cannibals, 1, 0, 0)  # Boat on the left side initially
+    goal_state = State(0, 0, 0, missionaries, cannibals)
+    
+    open_list = []
+    closed_set = set()
+    
+    heapq.heappush(open_list, initial_state)
+    
+    while open_list:
+        current = heapq.heappop(open_list)
+
+        if current.is_goal():
+            return current
+
+        closed_set.add((current.missionaries_left, current.cannibals_left, current.boat_left))
+
+        for neighbor in current.get_neighbors():
+            if (neighbor.missionaries_left, neighbor.cannibals_left, neighbor.boat_left) not in closed_set:
+                heapq.heappush(open_list, neighbor)
+
+    return None
+
+def print_solution(solution):
+    path = []
+    while solution:
+        path.append(solution)
+        solution = solution.previous
+    path.reverse()
+    
+    for step in path:
+        print(f"Left: {step.missionaries_left} missionaries, {step.cannibals_left} cannibals | "
+              f"Right: {step.missionaries_right} missionaries, {step.cannibals_right} cannibals | "
+              f"Boat on {'left' if step.boat_left else 'right'} side")
+    print(f"Total moves: {len(path) - 1}")
+
+if __name__ == "__main__":
+    missionaries = int(input("Enter the number of missionaries: "))
+    cannibals = int(input("Enter the number of cannibals: "))
+
+    solution = astar_solver(missionaries, cannibals)
+    
+    if solution:
+        print("Solution found! Sequence of moves:")
+        print_solution(solution)
+    else:
+        print("No solution found.")
